@@ -3,7 +3,6 @@
 
 ## 2. LLM Wiki 連結
 - Wiki 目錄（從這裡點進各頁）：https://github.com/Lynniu5016/phishing-wiki/blob/main/wiki/index.md
-- 整個 repo：https://github.com/Lynniu5016/phishing-wiki （規則在 `AGENTS.md`，原始資料在 `raw/`）
 
 ## 3. 教學 HTML 簡報連結
 https://lynniu5016.github.io/phishing-wiki/slides/
