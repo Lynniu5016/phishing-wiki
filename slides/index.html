@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>釣魚郵件怎麼辨識？</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F4F6F8; --sheet:#FFFFFF; --ink:#1B2A41; --muted:#5E6876;
+  --red:#C62E3A; --blue:#2C5BA6; --mark:#FFE24D; --line:#D5DBE3; --mail:#F9FAFB;
+  --serif:"Noto Serif TC","Songti TC","PMingLiU",serif;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#111824; --sheet:#182233; --ink:#E6EBF2; --muted:#9AA6B6;
+    --red:#F06470; --blue:#86AAEA; --mark:#8A7414; --line:#2C3A50; --mail:#1E2A3E;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#111824; --sheet:#182233; --ink:#E6EBF2; --muted:#9AA6B6;
+  --red:#F06470; --blue:#86AAEA; --mark:#8A7414; --line:#2C3A50; --mail:#1E2A3E;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:clamp(16px,1.15vw + 10px,21px);line-height:1.7;display:flex;flex-direction:column}
+a{color:var(--blue)}
+a:focus-visible,button:focus-visible{outline:3px solid var(--blue);outline-offset:3px;border-radius:4px}
+
+/* 航空信封條紋：整份簡報唯一的裝飾 */
+.airmail{height:10px;flex:none;background:repeating-linear-gradient(-45deg,var(--red) 0 18px,var(--sheet) 18px 30px,var(--blue) 30px 48px,var(--sheet) 48px 60px)}
+
+.progress{flex:none;display:flex;gap:6px;padding:10px clamp(14px,3vw,40px) 0;font-size:.72rem;color:var(--muted)}
+.progress span{flex:1;border-top:3px solid var(--line);padding-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.progress span.on{border-color:var(--blue);color:var(--ink);font-weight:700}
+
+main{flex:1;min-height:0;position:relative;overflow:hidden}
+.slide{position:absolute;inset:0;overflow-y:auto;padding:clamp(18px,3vw,44px) clamp(18px,5vw,72px) 24px;display:none}
+.slide.on{display:block}
+.inner{max-width:1040px;margin:0 auto}
+
+h1,h2{text-wrap:balance;font-family:var(--serif);font-weight:900;line-height:1.25;margin:0 0 .6em;letter-spacing:.01em}
+h1{font-size:clamp(2.1rem,4.6vw,3.6rem)}
+h2{font-size:clamp(1.55rem,3vw,2.35rem)}
+h3{font-size:1.05rem;margin:0 0 .3em}
+p{margin:0 0 .8em;max-width:38em}
+ul,ol{margin:0 0 1em;padding-left:1.3em;max-width:38em}
+li{margin:.35em 0}
+.lead{font-size:1.15em;color:var(--muted)}
+.cols{display:grid;grid-template-columns:1.05fr 1fr;gap:clamp(18px,3vw,44px);align-items:start}
+@media (max-width:760px){.cols{grid-template-columns:1fr}}
+
+/* 螢光筆：標出可疑的地方 */
+mark{background:linear-gradient(transparent 55%,var(--mark) 55%);color:inherit;padding:0 .1em}
+@media (prefers-reduced-motion:no-preference){
+  .slide.on .mail mark{background-size:0% 100%;background-repeat:no-repeat;animation:swipe .7s .35s ease-out forwards}
+  @keyframes swipe{to{background-size:100% 100%}}
+}
+
+/* 示意郵件 */
+.mail{background:var(--mail);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:.92em}
+.mail .row{display:flex;gap:.8em;padding:.5em 1em;border-bottom:1px solid var(--line)}
+.mail .row b{color:var(--muted);font-weight:500;min-width:3.5em}
+.mail .body{padding:1em}
+.mail .fake-link{color:var(--blue);text-decoration:underline;word-break:break-all}
+.mail .note{display:block;font-size:.78em;color:var(--muted);padding:.4em 1em;background:var(--sheet);border-top:1px solid var(--line)}
+.reveal{margin-top:.8em;font:inherit;font-size:.9em;padding:.45em 1em;border-radius:6px;border:1.5px solid var(--blue);background:transparent;color:var(--blue);cursor:pointer}
+.reveal[aria-expanded="true"]{background:var(--blue);color:var(--sheet)}
+.answer{display:none;margin-top:.6em;padding:.6em .9em;border-left:4px solid var(--red);background:var(--sheet);border-radius:0 6px 6px 0}
+.answer.show{display:block}
+
+.big{font-family:var(--serif);font-weight:900;font-size:clamp(2.2rem,5vw,3.8rem);line-height:1.1;color:var(--blue)}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(14px,2.5vw,32px);margin:1.2em 0}
+.facts div{border-top:2px solid var(--ink);padding-top:.6em}
+.facts small{display:block;color:var(--muted);font-size:.8em;margin-top:.4em}
+@media (max-width:760px){.facts{grid-template-columns:1fr}}
+
+.check{display:grid;grid-template-columns:auto 1fr;gap:.2em 1em;align-items:baseline}
+.check .n{font-family:var(--serif);font-weight:900;font-size:2.4em;color:var(--red);line-height:1}
+.term{font-weight:700;color:var(--blue)}
+.def{font-size:.88em;color:var(--muted)}
+.steps{counter-reset:s;list-style:none;padding:0}
+.steps li{counter-increment:s;position:relative;padding-left:2.4em;margin:.8em 0}
+.steps li::before{content:counter(s);position:absolute;left:0;top:-.05em;font-family:var(--serif);font-weight:900;font-size:1.5em;color:var(--red)}
+.quiz{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 28px}
+@media (max-width:760px){.quiz{grid-template-columns:1fr}}
+.quiz>div{border-top:1px solid var(--line);padding-top:.6em}
+.list-card{border:2px solid var(--ink);border-radius:12px;padding:1em 1.4em;background:var(--sheet);max-width:40em}
+.list-card dt{font-family:var(--serif);font-weight:900;font-size:1.6em;color:var(--red);float:left;width:1.6em;line-height:1.2}
+.list-card dd{margin:0 0 .8em 2.2em;min-height:1.8em}
+.ask{border-left:4px solid var(--mark);padding:.3em .9em;margin-top:1em;max-width:36em}
+.src-list li{font-size:.9em}
+
+footer.src{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px clamp(14px,3vw,40px);border-top:1px solid var(--line);font-size:.75rem;color:var(--muted);min-height:44px}
+footer.src a{text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:1px 9px;color:var(--ink);background:var(--sheet)}
+footer.src a:hover{border-color:var(--blue)}
+.nav{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px clamp(14px,3vw,40px) 12px}
+.nav button{font:inherit;font-size:.9rem;padding:.5em 1.2em;border-radius:8px;border:1.5px solid var(--ink);background:var(--sheet);color:var(--ink);cursor:pointer;min-width:6em}
+.nav button:disabled{opacity:.35;cursor:default}
+.nav .count{font-size:.85rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="airmail" aria-hidden="true"></div>
+<nav class="progress" id="progress" aria-label="簡報段落"></nav>
+
+<main id="deck">
+
+<!-- 1 封面 -->
+<section class="slide" data-sec="動機" data-src="case-taiwan-tax-phishing:S05">
+ <div class="inner cols">
+  <div>
+   <h1>釣魚郵件怎麼辨識？</h1>
+   <p class="lead">給會用 email、但不懂資安的你</p>
+   <p class="ask">這封信，你會點嗎？它哪裡有問題？<br>先記住你的答案，最後我們再回來看。</p>
+  </div>
+  <div class="mail" role="figure" aria-label="示意郵件：電子發票通知">
+   <div class="row"><b>寄件者</b><span>電子發票通知</span></div>
+   <div class="row"><b>主旨</b><span>您有一張電子發票，請下載查看</span></div>
+   <div class="body">
+    請點擊以下連結下載電子發票：<br>
+    <span class="fake-link">https://www.einvoice.nat.gov.tw/</span>
+   </div>
+   <span class="note">示意畫面，依 Fortinet 2026 年對台灣釣魚行動的分析重繪；寄件者與內文為示意。</span>
+  </div>
+ </div>
+</section>
+
+<!-- 2 學習目標 -->
+<section class="slide" data-sec="動機" data-src="">
+ <div class="inner">
+  <h2>學完你會知道</h2>
+  <ul>
+   <li>什麼是釣魚郵件，為什麼它這麼常見</li>
+   <li>用三個地方檢查一封信：語氣與要求、寄件者、連結與附件</li>
+   <li>在 Gmail 查看一封信有沒有通過驗證</li>
+   <li>收到可疑信的時候，該怎麼做</li>
+  </ul>
+ </div>
+</section>
+
+<!-- 3 為什麼 -->
+<section class="slide" data-sec="動機" data-src="phishing-trends:S02,phishing-trends:S06">
+ <div class="inner">
+  <h2>為什麼要學這個？</h2>
+  <div class="facts">
+   <div><span class="big">1,069,681</span><small>2026 年第二季全球記錄到的釣魚攻擊，比上一季增加 10.1%（APWG）</small></div>
+   <div><span class="big">16%</span><small>資料外洩事件中，以釣魚作為入侵途徑的比例（Verizon DBIR 2026）</small></div>
+   <div><span class="big">+40%</span><small>2026 年第一季到第二季，簡訊釣魚的成長；電話釣魚也成長 20%（APWG）</small></div>
+  </div>
+  <p>釣魚不只出現在 email，簡訊和電話也越來越多。</p>
+ </div>
+</section>
+
+<!-- 4 是什麼 -->
+<section class="slide" data-sec="概念" data-src="what-is-phishing:S01,what-is-phishing:S02">
+ <div class="inner">
+  <h2>什麼是釣魚？</h2>
+  <p class="lead">犯罪者假裝成你信任的人或機構，引誘你點連結、開附件或交出個資。</p>
+  <div class="cols">
+   <div>
+    <h3>常見管道</h3>
+    <p>email、簡訊、社群私訊、電話都可能是「餌」。</p>
+    <h3>公司裡的變形</h3>
+    <p><span class="term">商業電子郵件詐騙（BEC）</span>：冒充同事或廠商，騙員工匯款或交出資訊。</p>
+   </div>
+   <div>
+    <h3>兩種手段</h3>
+    <p><span class="term">社交工程</span>：讓你以為對方可信，例如假寄件地址、假網站、騙人的網域名稱。</p>
+    <p><span class="term">技術手法</span>：在電腦植入惡意程式，直接偷走帳號密碼。</p>
+   </div>
+  </div>
+ </div>
+</section>
+
+<!-- 5 Omar -->
+<section class="slide" data-sec="概念" data-src="what-is-phishing:S01,red-flags:S01">
+ <div class="inner cols">
+  <div>
+   <h2>真實故事：Omar 被釣了</h2>
+   <ol class="steps">
+    <li>收到一封像網購通知的信：付款失敗，要他立刻登入確認付款方式。</li>
+    <li>他趕時間，點了信裡的連結，在長得很像賣家網站的假網站登入。</li>
+    <li>密碼和信用卡資料被盜，歹徒用他的錢購物。</li>
+   </ol>
+   <p class="ask">如果是你，會在哪一步停下來？</p>
+  </div>
+  <div>
+   <div class="mail" role="figure" aria-label="示意郵件：付款失敗通知">
+    <div class="row"><b>寄件者</b><span>網購賣家（地址<mark>不是賣家的正式網域</mark>）</span></div>
+    <div class="row"><b>主旨</b><span>付款未成功</span></div>
+    <div class="body">您的付款沒有完成，請<mark>立即登入</mark>確認付款方式。</div>
+    <span class="note">示意畫面，依 CISA 的 Omar 案例重繪。螢光筆標出他漏看的兩個徵兆。</span>
+   </div>
+  </div>
+ </div>
+</section>
+
+<!-- 6 台灣 -->
+<section class="slide" data-sec="概念" data-src="case-taiwan-tax-phishing:S05">
+ <div class="inner">
+  <h2>就發生在台灣：假冒稅務單位</h2>
+  <p class="lead">2026 年初，資安公司 Fortinet 觀察到駭客假冒稅務稽查、報稅軟體和電子發票通知，鎖定台灣寄出釣魚信。</p>
+  <div class="cols">
+   <div>
+    <h3>手法一：壓縮檔</h3>
+    <p>附件是壓縮檔，裡面放一份正常的誘餌文件，和一個惡意捷徑檔。</p>
+    <p class="def">捷徑檔：Windows 用來指向其他程式或檔案的小檔案，點兩下會執行它指向的東西。</p>
+   </div>
+   <div>
+    <h3>手法二：假網域、假連結</h3>
+    <p>用 taxfnat[.]tw 這種看起來像官方的網域；信中顯示財政部電子發票網址，實際卻連到陌生網域。</p>
+   </div>
+  </div>
+  <p>中招之後，惡意程式會關掉 Microsoft Defender 等防毒軟體，讓駭客遠端控制電腦。</p>
+ </div>
+</section>
+
+<!-- 7 檢查點一 -->
+<section class="slide" data-sec="辨識" data-src="red-flags:S01,red-flags:S02">
+ <div class="inner">
+  <h2>檢查點一：語氣與要求</h2>
+  <div class="check">
+   <span class="n">1</span><p><b>急迫或情緒化</b>：「不立刻處理就會有嚴重後果」。</p>
+   <span class="n">2</span><p><b>索取資料</b>：要你提供帳號密碼、信用卡等個人或財務資料。</p>
+   <span class="n">3</span><p><b>先聊天再下手</b>：兩段式釣魚的第一封是正常的商業詢問，等你回信後，下一封才附上釣魚連結。</p>
+  </div>
+  <p class="ask">以前常說「錯字多就是詐騙」，但 AI 寫的釣魚信可能完全沒有錯字，所以要看其他徵兆。</p>
+ </div>
+</section>
+
+<!-- 8 檢查點二 -->
+<section class="slide" data-sec="辨識" data-src="sender-spoofing:S01,sender-spoofing:S02,sender-spoofing:S03,red-flags:S03">
+ <div class="inner cols">
+  <div>
+   <h2>檢查點二：寄件者</h2>
+   <p><span class="term">相似網域</span>：只差幾個字母的假網址，例如 amazan.com。</p>
+   <p><span class="term">顯示名稱</span>：收件匣裡看到的名字，和實際的寄件 email 地址是兩個不同欄位。詐騙者會在顯示名稱上動手腳，躲過郵件過濾。</p>
+   <h3>Google 規定正當寄件者不能這樣做</h3>
+   <ul>
+    <li>在顯示名稱放「URGENT REQUEST」這類主旨內容</li>
+    <li>不是真的回覆或轉寄，主旨卻加 Re: 或 Fwd:</li>
+   </ul>
+  </div>
+  <div class="mail" role="figure" aria-label="示意：顯示名稱與實際地址">
+   <div class="row"><b>顯示名稱</b><span>Amazon 客服</span></div>
+   <div class="row"><b>實際地址</b><span>service@<mark>amazan.com</mark></span></div>
+   <span class="note">示意畫面。顯示名稱可以寫得很像，要看實際地址的網域。</span>
+  </div>
+ </div>
+</section>
+
+<!-- 9 檢查點三 -->
+<section class="slide" data-sec="辨識" data-src="malicious-links-attachments:S05,malicious-links-attachments:S01,red-flags:S01">
+ <div class="inner cols">
+  <div>
+   <h2>檢查點三：連結與附件</h2>
+   <ul>
+    <li>顯示的連結文字<b>不一定</b>是真正的目的地。</li>
+    <li>來源不明的短網址是常見徵兆。</li>
+    <li>附件可能是壓縮檔，裡面藏惡意捷徑檔。</li>
+    <li>懷疑是釣魚時，連「取消訂閱」連結都不要點。</li>
+   </ul>
+  </div>
+  <div class="mail" role="figure" aria-label="示意：顯示的連結與實際連結">
+   <div class="row"><b>信中顯示</b><span class="fake-link">https://www.einvoice.nat.gov.tw/</span></div>
+   <div class="row"><b>實際連到</b><span><mark>njhwuyklw[.]com</mark></span></div>
+   <span class="note">出自 Fortinet 2026 年台灣電子發票釣魚案例，惡意網域已用 [.] 去活化。</span>
+  </div>
+ </div>
+</section>
+
+<!-- 10 技術 -->
+<section class="slide" data-sec="實作" data-src="email-authentication:S03">
+ <div class="inner">
+  <h2>技術一點：郵件驗證</h2>
+  <p class="lead">SPF、DKIM、DMARC 讓收件端判斷一封信是不是真的從它聲稱的網域寄出。</p>
+  <div class="facts">
+   <div><h3>SPF</h3><p>網域公告「哪些寄件者可以用我的網域寄信」。</p></div>
+   <div><h3>DKIM</h3><p>讓收件端確認「這封信真的是網域擁有者寄的」。</p></div>
+   <div><h3>DMARC</h3><p>告訴收件端，沒通過 SPF 或 DKIM 的信要怎麼處理。</p></div>
+  </div>
+  <p>這些由寄件端在自己網域的網域服務商完成。2024 年起，寄信到個人 Gmail 必須設定 SPF 或 DKIM；每天寄超過 5,000 封的寄件者，三者都要設定。</p>
+ </div>
+</section>
+
+<!-- 11 實作 -->
+<section class="slide" data-sec="實作" data-src="reading-email-headers:S07,reading-email-headers:S04">
+ <div class="inner cols">
+  <div>
+   <h2>實作：自己檢查一封信</h2>
+   <ol class="steps">
+    <li><b>看問號</b>：寄件者名稱旁出現問號，代表這封信沒有通過驗證。</li>
+    <li><b>Gmail App</b>：查看詳細資料 → 查看安全性詳細資料。「寄件者」和「簽署者」都有網域，就代表已驗證。</li>
+    <li><b>Gmail 網頁版</b>：點「回覆」旁的「更多」→「顯示原始郵件」，看完整標頭；也可以貼到 Google Admin Toolbox 的 Messageheader 工具分析。</li>
+   </ol>
+  </div>
+  <div>
+   <h3>結果怎麼解讀</h3>
+   <p>未通過驗證不一定是詐騙，郵寄清單這類大量寄送的正當郵件有時也會驗證失敗。</p>
+   <p>Google 也提到，垃圾郵件發送者同樣能讓信通過驗證。</p>
+   <p class="ask">看到「已驗證」就能完全放心嗎？想想前面的三個檢查點。</p>
+  </div>
+ </div>
+</section>
+
+<!-- 12 怎麼辦 -->
+<section class="slide" data-sec="行動" data-src="what-to-do:S01">
+ <div class="inner cols">
+  <div>
+   <h2>收到可疑信怎麼辦？</h2>
+   <ol class="steps">
+    <li><b>辨識</b>：對照三個檢查點。</li>
+    <li><b>抗拒並回報</b>：不點連結和附件，用「回報垃圾郵件」功能回報。</li>
+    <li><b>刪除</b>：不回信，不點任何連結。</li>
+   </ol>
+   <p class="ask">覺得可能是真的？不要用信裡的連結和電話，自己搜尋官網，從官網找聯絡方式。</p>
+  </div>
+  <div>
+   <h3>事前防護</h3>
+   <ul>
+    <li>強密碼＋密碼管理器</li>
+    <li>開啟多因素驗證（MFA）：登入時除了密碼，還要簡訊驗證碼或指紋</li>
+    <li>不拖延軟體更新</li>
+   </ul>
+  </div>
+ </div>
+</section>
+
+<!-- 13 測驗 -->
+<section class="slide" data-sec="練習" data-src="red-flags:S01,malicious-links-attachments:S05,reading-email-headers:S07,malicious-links-attachments:S01">
+ <div class="inner">
+  <h2>小測驗</h2>
+  <div class="quiz">
+   <div><p>Q1 錯字很少的信就比較安全？</p><button class="reveal" aria-expanded="false">看答案</button><p class="answer">錯。AI 寫的釣魚信可能完全沒有錯字。</p></div>
+   <div><p>Q2 信中顯示財政部網址，就可以放心點？</p><button class="reveal" aria-expanded="false">看答案</button><p class="answer">錯。顯示的連結可能和實際連結不同。</p></div>
+   <div><p>Q3 Gmail 寄件者旁出現問號，代表什麼？</p><button class="reveal" aria-expanded="false">看答案</button><p class="answer">這封信沒有通過驗證，回信或下載附件要小心。</p></div>
+   <div><p>Q4 懷疑是釣魚，可以點「取消訂閱」嗎？</p><button class="reveal" aria-expanded="false">看答案</button><p class="answer">不行，任何連結都不要點。</p></div>
+  </div>
+  <p class="ask">回到封面那封電子發票通知：它的問題在哪裡？</p>
+  <button class="reveal" aria-expanded="false">看答案</button>
+  <p class="answer">它顯示的是財政部電子發票網址，但在 Fortinet 分析的真實案例中，實際連到 njhwuyklw[.]com（檢查點三）。</p>
+ </div>
+</section>
+
+<!-- 14 清單 -->
+<section class="slide" data-sec="練習" data-src="">
+ <div class="inner">
+  <h2>帶走這張檢查清單</h2>
+  <dl class="list-card">
+   <dt>停</dt><dd>語氣是不是在催你？是不是要你的資料？</dd>
+   <dt>看</dt><dd>寄件者的網域對不對？連結指向哪裡？附件是什麼？</dd>
+   <dt>查</dt><dd>Gmail 有沒有出現問號？</dd>
+   <dt>報</dt><dd>回報並刪除；要查證就自己找官網。</dd>
+  </dl>
+ </div>
+</section>
+
+<!-- 15 來源 -->
+<section class="slide" data-sec="練習" data-src="">
+ <div class="inner">
+  <h2>參考來源與製作方式</h2>
+  <p>本簡報的內容全部來自 <a href="https://github.com/Lynniu5016/phishing-wiki">LLM Wiki</a>，每張投影片底部的「出處」可以連到對應的 Wiki 頁面。製作流程見 <a href="https://github.com/Lynniu5016/phishing-wiki/blob/main/docs/workflow.md">workflow.md</a>。</p>
+  <ol class="src-list">
+   <li>CISA〈Recognize and Report Phishing〉<a href="https://www.cisa.gov/secure-our-world/recognize-and-report-phishing">連結</a></li>
+   <li>APWG《Phishing Activity Trends Report》2026 Q2 <a href="https://docs.apwg.org/reports/apwg_trends_report_q2_2026.pdf">連結</a></li>
+   <li>Google〈Email sender guidelines〉<a href="https://support.google.com/mail/answer/81126?hl=en">連結</a></li>
+   <li>Google〈Trace an email with its full header〉<a href="https://support.google.com/mail/answer/29436?hl=en">連結</a></li>
+   <li>Fortinet〈Massive Winos 4.0 Campaigns Target Taiwan〉<a href="https://www.fortinet.com/blog/threat-research/massive-winos-40-campaigns-target-taiwan">連結</a></li>
+   <li>Verizon《2026 Data Breach Investigations Report》<a href="https://www.verizon.com/business/resources/reports/dbir/">連結</a></li>
+   <li>Google〈Check if your Gmail message is authenticated〉<a href="https://support.google.com/mail/answer/180707?hl=en">連結</a></li>
+  </ol>
+ </div>
+</section>
+
+</main>
+
+<footer class="src" id="src" aria-label="本頁出處"></footer>
+<div class="nav">
+ <button id="prev" type="button">上一頁</button>
+ <span class="count" id="count" aria-live="polite"></span>
+ <button id="next" type="button">下一頁</button>
+</div>
+
+<script>
+(function(){
+  var WIKI = "https://github.com/Lynniu5016/phishing-wiki/blob/main/wiki/concepts/";
+  var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+  var secs = [];
+  slides.forEach(function(s){ if (secs.indexOf(s.dataset.sec) < 0) secs.push(s.dataset.sec); });
+  var prog = document.getElementById("progress");
+  secs.forEach(function(name){ var sp = document.createElement("span"); sp.textContent = name; prog.appendChild(sp); });
+  var cur = 0;
+
+  function fromHash(){
+    var m = /^#s(\d+)$/.exec(location.hash);
+    var n = m ? parseInt(m[1], 10) - 1 : 0;
+    return Math.min(Math.max(n, 0), slides.length - 1);
+  }
+  function show(n, push){
+    cur = n;
+    slides.forEach(function(s, i){ s.classList.toggle("on", i === n); });
+    slides[n].scrollTop = 0;
+    var sec = slides[n].dataset.sec;
+    Array.prototype.forEach.call(prog.children, function(sp){ sp.classList.toggle("on", sp.textContent === sec); });
+    document.getElementById("count").textContent = (n + 1) + " / " + slides.length;
+    document.getElementById("prev").disabled = n === 0;
+    document.getElementById("next").disabled = n === slides.length - 1;
+    var src = document.getElementById("src"); src.innerHTML = "";
+    var refs = (slides[n].dataset.src || "").split(",").filter(Boolean);
+    if (refs.length){
+      var label = document.createElement("span"); label.textContent = "出處（Wiki）："; src.appendChild(label);
+      refs.forEach(function(r){
+        var parts = r.split(":"); var a = document.createElement("a");
+        a.href = WIKI + parts[0] + ".md"; a.target = "_blank"; a.rel = "noopener";
+        a.textContent = parts[0] + " · " + parts[1]; src.appendChild(a);
+      });
+    } else {
+      src.textContent = "本頁為教學結構（目標、總結或來源清單），不含事實主張";
+    }
+    if (push !== false && location.hash !== "#s" + (n + 1)) history.replaceState(null, "", "#s" + (n + 1));
+  }
+  function go(d){ var n = cur + d; if (n >= 0 && n < slides.length) show(n); }
+  document.getElementById("prev").addEventListener("click", function(){ go(-1); });
+  document.getElementById("next").addEventListener("click", function(){ go(1); });
+  document.addEventListener("keydown", function(e){
+    if (e.target.closest && e.target.closest("button,a")) { if (e.key === " " || e.key === "Enter") return; }
+    if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); go(1); }
+    else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(-1); }
+    else if (e.key === "Home") show(0);
+    else if (e.key === "End") show(slides.length - 1);
+  });
+  var tx = null;
+  document.getElementById("deck").addEventListener("touchstart", function(e){ tx = e.touches[0].clientX; }, {passive:true});
+  document.getElementById("deck").addEventListener("touchend", function(e){
+    if (tx === null) return; var dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 60) go(dx < 0 ? 1 : -1); tx = null;
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".reveal"), function(b){
+    b.addEventListener("click", function(){
+      var ans = b.nextElementSibling; var open = b.getAttribute("aria-expanded") !== "true";
+      b.setAttribute("aria-expanded", open ? "true" : "false");
+      b.textContent = open ? "收起答案" : "看答案";
+      ans.classList.toggle("show", open);
+    });
+  });
+  window.addEventListener("hashchange", function(){ show(fromHash(), false); });
+  show(fromHash(), false);
+})();
+</script>
+</body>
+</html>
