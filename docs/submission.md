@@ -12,7 +12,6 @@ https://github.com/Lynniu5016/phishing-wiki/blob/main/docs/workflow.md
 
 ## 5. 一次實際執行的結果與檢查紀錄
 https://github.com/Lynniu5016/phishing-wiki/blob/main/wiki/log.md
-（摘要見 workflow.md「實際執行紀錄」）
 
 ## 6. 反思
 ### 一、哪一個節點最常出錯？
