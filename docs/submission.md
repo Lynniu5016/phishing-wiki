@@ -6,7 +6,8 @@
 主題是「釣魚郵件怎麼辨識？」，對象是會用 email、但不懂資安的大學生與上班族。Wiki 以 7 篇官方與業界來源（CISA、APWG、Google ×3、Fortinet、Verizon）為基礎，整理成 9 個概念頁，內容涵蓋釣魚的定義、現況數據、三個檢查點（語氣與要求、寄件者、連結與附件）、SPF／DKIM／DMARC、如何在 Gmail 查看驗證結果，以及台灣假冒稅務單位的真實案例。每個事實句都標註來源編號，可以追溯回原文。
 
 ## 2. LLM Wiki 連結
-https://github.com/Lynniu5016/phishing-wiki （Wiki 本體在 `wiki/`，規則在 `AGENTS.md`）
+- Wiki 目錄（從這裡點進各頁）：https://github.com/Lynniu5016/phishing-wiki/blob/main/wiki/index.md
+- 整個 repo：https://github.com/Lynniu5016/phishing-wiki （規則在 `AGENTS.md`，原始資料在 `raw/`）
 
 ## 3. 教學 HTML 簡報連結
 https://lynniu5016.github.io/phishing-wiki/slides/
